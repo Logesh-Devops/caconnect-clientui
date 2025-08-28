@@ -28,6 +28,24 @@ const handleResponse = async (response) => {
   return response.blob();
 };
 
+export const requestPasswordReset = async (email) => {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify({ email })
+    });
+    return handleResponse(response);
+};
+
+export const confirmPasswordReset = async (token, newPassword) => {
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'accept': 'application/json' },
+        body: new URLSearchParams({ token, new_password: newPassword })
+    });
+    return handleResponse(response);
+};
+
 export const getProfile = async (token) => {
   const response = await fetch(`${API_BASE_URL}/profile/`, {
     headers: getAuthHeaders(token)
