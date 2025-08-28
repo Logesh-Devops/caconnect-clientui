@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -69,13 +70,6 @@ const LoginForm = () => {
         setLoading(false);
         setOtp('');
     }
-  };
-  
-  const handleFeatureNotImplemented = () => {
-    toast({
-        title: "Feature not available",
-        description: "🚧 This feature isn't implemented yet—but don't worry! You can request it in your next prompt! 🚀",
-    });
   };
 
   return (
@@ -153,13 +147,10 @@ const LoginForm = () => {
                   </Button>
                 </motion.div>
               </form>
-               <div className="mt-4 flex justify-between text-sm">
-                <Button variant="link" className="text-gray-400 hover:text-white px-0" onClick={handleFeatureNotImplemented}>
-                    Forgot Password
-                </Button>
-                <Button variant="link" className="text-gray-400 hover:text-white px-0" onClick={handleFeatureNotImplemented}>
-                    Resend Token
-                </Button>
+               <div className="mt-4 flex justify-end text-sm">
+                 <Button asChild variant="link" className="text-gray-400 hover:text-white px-0">
+                    <Link to="/forgot-password">Forgot Password?</Link>
+                 </Button>
                </div>
             </CardContent>
           </Card>
