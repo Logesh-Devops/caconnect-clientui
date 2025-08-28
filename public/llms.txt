@@ -1,0 +1,2 @@
+## Pages
+- [Financial Publication Platform - Manage Your Finances](/): Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management.
