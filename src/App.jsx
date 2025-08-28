@@ -1,9 +1,11 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
 import { Toaster } from '@/components/ui/toaster';
 import LoginForm from '@/components/auth/LoginForm';
+import ForgotPassword from '@/components/auth/ForgotPassword';
+import ResetPassword from '@/components/auth/ResetPassword';
 import Sidebar from '@/components/layout/Sidebar';
 import Dashboard from '@/components/dashboard/Dashboard';
 import Documents from '@/components/documents/Documents';
@@ -13,9 +15,12 @@ import OrganisationBank from '@/components/organisation/OrganisationBank.jsx';
 import Profile from '@/components/profile/Profile.jsx';
 import { motion } from 'framer-motion';
 import { getOrganisationBankAccounts } from '@/lib/api';
+import AccountantDashboard from '@/components/accountant/AccountantDashboard.jsx';
+import AccountantSidebar from '@/components/layout/AccountantSidebar.jsx';
+import TaskManagement from '@/components/accountant/TaskManagement.jsx';
 
-const AppContent = () => {
-  const { user, loading } = useAuth();
+const ProtectedContent = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [currentEntity, setCurrentEntity] = useState(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -23,7 +28,7 @@ const AppContent = () => {
   const [organisationBankAccounts, setOrganisationBankAccounts] = useState([]);
 
   const fetchOrganisationBankAccounts = useCallback(async () => {
-    if (currentEntity && user?.access_token) {
+    if (currentEntity && user?.access_token && user?.role === 'CLIENT_USER') {
       try {
         const accounts = await getOrganisationBankAccounts(currentEntity, user.access_token);
         setOrganisationBankAccounts(accounts);
@@ -32,7 +37,7 @@ const AppContent = () => {
         setOrganisationBankAccounts([]);
       }
     }
-  }, [currentEntity, user?.access_token]);
+  }, [currentEntity, user?.access_token, user?.role]);
 
   useEffect(() => {
     fetchOrganisationBankAccounts();
@@ -57,7 +62,7 @@ const AppContent = () => {
   }, []);
 
   useEffect(() => {
-    if (user && !currentEntity) {
+    if (user && user.role === 'CLIENT_USER' && !currentEntity) {
         const entitiesToDisplay = user.entities || [];
         if (entitiesToDisplay.length > 0) {
             setCurrentEntity(entitiesToDisplay[0].id);
@@ -66,21 +71,9 @@ const AppContent = () => {
         }
     }
   }, [user, currentEntity]);
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center">
-        <div className="animated-bg"></div>
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
-  if (!user) {
-    return <LoginForm />;
-  }
-  
   const getEntityName = (entityId) => {
+    if (user.role !== 'CLIENT_USER') return user.name;
     const entitiesToDisplay = user.entities || [];
     const entity = entitiesToDisplay.find(e => e.id === entityId);
     if (entity) return entity.name;
@@ -88,7 +81,7 @@ const AppContent = () => {
     return 'Select Entity';
   };
 
-  const renderContent = () => {
+  const renderClientContent = () => {
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard 
@@ -133,6 +126,39 @@ const AppContent = () => {
     }
   };
 
+  const renderAccountantContent = () => {
+    switch (activeTab) {
+        case 'dashboard':
+            return <AccountantDashboard />;
+        case 'tasks':
+            return <TaskManagement />;
+        case 'profile':
+            return <Profile />;
+        default:
+            return <AccountantDashboard />;
+    }
+  };
+
+  if (user.role === 'CA_ACCOUNTANT') {
+      return (
+        <div className="flex h-screen bg-transparent">
+          <AccountantSidebar 
+            activeTab={activeTab} 
+            setActiveTab={setActiveTab} 
+            isCollapsed={isSidebarCollapsed}
+            setIsCollapsed={setIsSidebarCollapsed}
+          />
+          <motion.main 
+            animate={{ marginLeft: isSidebarCollapsed ? '88px' : '288px' }}
+            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+            className="flex-1 overflow-auto"
+          >
+            {renderAccountantContent()}
+          </motion.main>
+        </div>
+      )
+  }
+
   return (
     <div className="flex h-screen bg-transparent">
       <Sidebar 
@@ -145,11 +171,11 @@ const AppContent = () => {
         getEntityName={getEntityName}
       />
       <motion.main 
-        animate={{ marginLeft: isSidebarCollapsed ? '80px' : '288px' }}
-        transition={{ duration: 0.5, ease: 'easeInOut' }}
+        animate={{ marginLeft: isSidebarCollapsed ? '88px' : '288px' }}
+        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
         className="flex-1 overflow-auto"
       >
-        {currentEntity !== null ? renderContent() : (
+        {currentEntity !== null || user.role !== 'CLIENT_USER' ? renderClientContent() : (
             <div className="h-full flex items-center justify-center">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
             </div>
@@ -157,6 +183,37 @@ const AppContent = () => {
       </motion.main>
     </div>
   );
+}
+
+const AppContent = () => {
+    const { user, loading } = useAuth();
+
+    if (loading) {
+        return (
+            <div className="min-h-screen w-full flex items-center justify-center">
+                <div className="animated-bg"></div>
+                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
+    
+    return (
+        <Routes>
+            {user ? (
+                <>
+                    <Route path="/" element={<ProtectedContent />} />
+                    <Route path="*" element={<Navigate to="/" />} />
+                </>
+            ) : (
+                <>
+                    <Route path="/login" element={<LoginForm />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="*" element={<Navigate to="/login" />} />
+                </>
+            )}
+        </Routes>
+    );
 };
 
 function App() {
