@@ -32,14 +32,9 @@ export const AuthProvider = ({ children }) => {
     initializeUser();
   }, []);
 
-  const finishLogin = (userData, profileData, entitiesData) => {
-    const finalUserData = { 
-      ...userData, 
-      ...profileData,
-      entities: entitiesData || []
-    };
-    setUser(finalUserData);
-    localStorage.setItem('user', JSON.stringify(finalUserData));
+  const finishLogin = (userData) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
   };
   
   const login = async (email, password) => {
@@ -60,28 +55,38 @@ export const AuthProvider = ({ children }) => {
     if (!response.ok) {
         throw new Error(data.detail || 'Login failed');
     }
-    
-    if (data.role !== 'CLIENT_USER') {
-        throw new Error('Permission Denied. Only client users can log in.');
-    }
-    
-    const [profileData, entitiesData] = await Promise.all([
-        apiGetProfile(data.access_token),
-        apiGetEntities(data.access_token)
-    ]);
-    
-    if (profileData.is_2fa_enabled) {
-      return { twoFactorEnabled: true, loginData: { ...data, ...profileData, entities: entitiesData } };
+
+    if (data.role === 'CLIENT_USER') {
+        const [profileData, entitiesData] = await Promise.all([
+            apiGetProfile(data.access_token),
+            apiGetEntities(data.access_token)
+        ]);
+
+        const fullUserData = { ...data, ...profileData, entities: entitiesData || [] };
+
+        if (profileData.is_2fa_enabled) {
+            return { twoFactorEnabled: true, loginData: fullUserData };
+        } else {
+            finishLogin(fullUserData);
+            return { twoFactorEnabled: false };
+        }
+    } else if (data.role === 'CA_ACCOUNTANT') {
+        const profileData = await apiGetProfile(data.access_token);
+        const fullUserData = { ...data, ...profileData, name: data.agency_name };
+        
+        if (profileData.is_2fa_enabled) {
+            return { twoFactorEnabled: true, loginData: fullUserData };
+        } else {
+            finishLogin(fullUserData);
+            return { twoFactorEnabled: false };
+        }
     } else {
-      finishLogin(data, profileData, entitiesData);
-      return { twoFactorEnabled: false };
+        throw new Error('Permission Denied. Your user role is not supported.');
     }
   };
   
   const verifyOtpAndFinishLogin = async (loginData, otp) => {
-    // Here you might want to call a verify OTP endpoint
-    // For now, we assume if we are here, OTP is correct and we can finish login
-    finishLogin(loginData, {}, loginData.entities);
+    finishLogin(loginData);
   }
 
   const logout = () => {
